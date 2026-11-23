@@ -5,6 +5,9 @@ export type Photo = { image: HTMLImageElement; url: string; fit: Fit };
 
 export const INITIAL: Transform = { x: 0, y: 0, zoom: 1 };
 export const OUTPUT_SIZE = 2048;
+// Photo bounds from the supplied inset reference, in whole-frame coordinates.
+export const PHOTO_SIZE = 0.785;
+export const PHOTO_INSET = (1 - PHOTO_SIZE) / 2;
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function fitImage(width: number, height: number): Fit {
@@ -14,8 +17,8 @@ export function fitImage(width: number, height: number): Fit {
 
 export function clampTransform(value: Transform, fit: Fit): Transform {
   const zoom = clamp(value.zoom, 1, 10);
-  const maxX = (fit.width * zoom - 1) / 2;
-  const maxY = (fit.height * zoom - 1) / 2;
+  const maxX = (fit.width * zoom - 1) * PHOTO_SIZE / 2;
+  const maxY = (fit.height * zoom - 1) * PHOTO_SIZE / 2;
   return { x: clamp(value.x, -maxX, maxX), y: clamp(value.y, -maxY, maxY), zoom };
 }
 
@@ -87,10 +90,16 @@ export function paint(canvas: HTMLCanvasElement, photo: Photo | null,
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   if (photo) {
-    const width = photo.fit.width * transform.zoom * size;
-    const height = photo.fit.height * transform.zoom * size;
+    const photoSize = size * PHOTO_SIZE;
+    const width = photo.fit.width * transform.zoom * photoSize;
+    const height = photo.fit.height * transform.zoom * photoSize;
+    context.save();
+    context.beginPath();
+    context.rect(size * PHOTO_INSET, size * PHOTO_INSET, photoSize, photoSize);
+    context.clip();
     context.drawImage(photo.image, size / 2 - width / 2 + transform.x * size,
       size / 2 - height / 2 + transform.y * size, width, height);
+    context.restore();
   }
   context.drawImage(frame, 0, 0, size, size);
 }

@@ -22,7 +22,8 @@ npm run preview
 - Choose a photo, drag to reposition, pinch or use the flat slider to zoom **100–1000%**.
 - Local JPG/PNG/WebP/AVIF decoding; lazy HEIC/HEIF conversion for browsers without native support.
 - Original campaign artwork optimized into a transparent 2048px WebP; export a **2048 × 2048 PNG**.
-- Download result, share the prepared PNG on supported phones, or long-press the result image to save.
+- Photo fits a centered square measuring **78.5%** of the full frame, clipped to that area at every zoom level.
+- Download PNG immediately without a popup. Phones offer a collapsed **Cách lưu khác** section with sharing and a long-press image fallback.
 - Zalo-specific saving guidance and external-browser fallback.
 - No backend, analytics, photo uploads, or persistent photo storage. Fonts are self-hosted.
 - Keyboard controls, native accessible dialogs, reduced motion, and safe area spacing.
@@ -35,7 +36,7 @@ Replace `public/frame.webp` to change the frame (square transparent image). The 
 
 ## Mobile saving
 
-The image is encoded before the save dialog opens. The share button calls `navigator.share` directly from a new tap, preserving transient user activation. File sharing uses capability detection, with direct PNG download and a normal image element as fallbacks. A completed share call is not treated as proof that the user saved the file.
+Download generates the PNG and starts a browser download immediately, without an app popup. On phones, an inline **Cách lưu khác** section offers additional saving methods. The share button calls `navigator.share` directly from a new tap using the prepared file, preserving transient user activation. File sharing uses capability detection, with a normal image element as a long-press fallback. Editing or replacing a photo discards the previous export. A completed share call is not treated as proof that the user saved the file.
 
 iOS may save a download to **Files → Downloads**. The share sheet can offer **Save Image**. Zalo varies by OS and app version; use long press or open in Safari/Chrome and select the photo again if its webview blocks saving.
 

@@ -8,10 +8,19 @@ describe('photo framing', () => {
   });
 
   it('never exposes blank edges after dragging, even at 1000%', () => {
-    expect(clampTransform({ x: 99, y: -99, zoom: 10 }, { width: 1, height: 2 }))
-      .toEqual({ x: 4.5, y: -9.5, zoom: 10 });
+    const value = clampTransform({ x: 99, y: -99, zoom: 10 }, { width: 1, height: 2 });
+    expect(value.x).toBeCloseTo(3.5325);
+    expect(value.y).toBeCloseTo(-7.4575);
+    expect(value.zoom).toBe(10);
     expect(clampTransform({ x: 1, y: 1, zoom: 1 }, { width: 1, height: 1 }))
       .toEqual({ x: 0, y: 0, zoom: 1 });
+  });
+
+  it('uses the inset photo area when limiting portrait and landscape dragging', () => {
+    expect(clampTransform({ x: 1, y: -1, zoom: 1 }, fitImage(1200, 600)).x)
+      .toBeCloseTo(0.3925);
+    expect(clampTransform({ x: 1, y: -1, zoom: 1 }, fitImage(600, 1200)).y)
+      .toBeCloseTo(-0.3925);
   });
 
   it('keeps the point under the fingers fixed when pinching', () => {

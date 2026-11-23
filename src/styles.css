@@ -101,7 +101,9 @@ input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .save-instruction { color: var(--muted); font-size: 10px; line-height: 1.7; text-align: center; margin: 12px 0 0; }
 .save-message { font-size: 11px; line-height: 1.7; color: #215cae; margin: 0; text-align: center; }
 .save-message:not(:empty) { margin-top: 12px; }
-.share-desktop { display: flex; margin: 13px auto 0; min-height: 32px; font-size: 11px; text-decoration: none; }
+.save-options { margin-top: 12px; }
+.save-options > summary { width: fit-content; margin: 0 auto; padding: 12px 8px; min-height: 44px; font-size: 11px; color: #215bc7; cursor: pointer; }
+.save-options-content { padding-top: 12px; }
 .help-list { list-style: none; padding: 0; margin: 0 0 22px; counter-reset: help; }
 .help-list li { position: relative; padding-left: 29px; margin: 20px 0; counter-increment: help; }
 .help-list li::before { content: '0' counter(help); position: absolute; left: 0; top: 2px; font-size: 10px; color: #2863bd; }

@@ -3,8 +3,8 @@ import type { ChangeEvent, CSSProperties, DragEvent } from 'react';
 import { Icon } from './Icon';
 import { Preview } from './Preview';
 import { Modal } from './Modal';
-import { SaveDialog } from './SaveDialog';
-import type { ExportedPhoto } from './SaveDialog';
+import { SaveOptions } from './SaveOptions';
+import type { ExportedPhoto } from './SaveOptions';
 import { clampTransform, exportPhoto, INITIAL, loadImage, readPhoto } from './image';
 import type { Photo, Transform } from './image';
 
@@ -22,6 +22,8 @@ export default function App() {
   const request = useRef(0);
   const operation = useRef(false);
   const inZalo = /zalo/i.test(navigator.userAgent);
+  const mobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   useEffect(() => {
     let active = true;
@@ -30,7 +32,10 @@ export default function App() {
     return () => { active = false; };
   }, []);
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.url); }, [photo]);
-  useEffect(() => () => { if (result) URL.revokeObjectURL(result.url); }, [result]);
+  useEffect(() => () => {
+    // Give an in-progress browser download time to consume its blob after an edit.
+    if (result) window.setTimeout(() => URL.revokeObjectURL(result.url), 60_000);
+  }, [result]);
   useEffect(() => () => { request.current++; }, []);
 
   function choose() { if (!operation.current) input.current?.click(); }
@@ -42,7 +47,7 @@ export default function App() {
     try {
       const next = await readPhoto(file);
       if (id !== request.current) { URL.revokeObjectURL(next.url); return; }
-      setPhoto(next); setTransform(INITIAL);
+      setPhoto(next); updateTransform(INITIAL);
     } catch (cause) {
       if (id === request.current) setError(cause instanceof Error ? cause.message : 'Chưa đọc được ảnh. Bạn thử lại nha.');
     } finally {
@@ -63,15 +68,29 @@ export default function App() {
     operation.current = true;
     setBusy('export'); setError('');
     try {
-      const blob = await exportPhoto(photo, frame, transform);
-      const file = new File([blob], 'TDGFrame-50-ngay-than-toc.png', { type: 'image/png' });
-      setResult({ file, url: URL.createObjectURL(blob) });
+      let exported = result;
+      if (!exported) {
+        const blob = await exportPhoto(photo, frame, transform);
+        const file = new File([blob], 'TDGFrame-50-ngay-than-toc.png', { type: 'image/png' });
+        exported = { file, url: URL.createObjectURL(blob) };
+        setResult(exported);
+      }
+      const link = document.createElement('a');
+      link.href = exported.url;
+      link.download = exported.file.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Chưa xuất được ảnh. Bạn thử lại nha.');
     } finally { operation.current = false; setBusy(null); }
   }
+  function updateTransform(value: Transform) {
+    setTransform(value);
+    setResult(null);
+  }
   function zoom(value: number) {
-    if (photo) setTransform(clampTransform({ ...transform, zoom: value }, photo.fit));
+    if (photo) updateTransform(clampTransform({ ...transform, zoom: value }, photo.fit));
   }
 
   return <div className="site-shell">
@@ -91,7 +110,7 @@ export default function App() {
         <p>Một chiếc avatar. Cùng một tinh thần.</p>
       </div>
 
-      <Preview photo={photo} frame={frame} transform={transform} onTransform={setTransform}
+      <Preview photo={photo} frame={frame} transform={transform} onTransform={updateTransform}
         onChoose={choose} busy={!!busy}/>
 
       <section className="tools" aria-label="Tùy chỉnh ảnh">
@@ -117,7 +136,7 @@ export default function App() {
               onClick={() => zoom(Math.min(10, transform.zoom + 0.1))}><Icon name="plus" size={17}/></button>
           </div>
           <output htmlFor="zoom">{Math.round(transform.zoom * 100)}<span>%</span></output>
-          <button className="reset-button" disabled={!photo || !!busy} onClick={() => setTransform(INITIAL)} aria-label="Đặt lại vị trí và zoom"><Icon name="reset" size={16}/></button>
+          <button className="reset-button" disabled={!photo || !!busy} onClick={() => updateTransform(INITIAL)} aria-label="Đặt lại vị trí và zoom"><Icon name="reset" size={16}/></button>
         </div>
 
         <button className="button button-primary export-button" disabled={!photo || !frame || !!busy} onClick={save}>
@@ -125,21 +144,21 @@ export default function App() {
           {busy === 'export' ? 'Đang tạo ảnh…' : 'Download'}
         </button>
         <p className="error-message" role="alert">{error}</p>
+        {result && (mobile || inZalo) ? <SaveOptions result={result}/> : null}
         {frameError ? <div className="frame-error" role="alert">Chưa tải được khung. Kiểm tra kết nối rồi <button className="text-button" onClick={() => location.reload()}>thử lại</button>.</div> : null}
-        {inZalo ? <p className="zalo-note">Mở bằng Zalo: sau khi tạo ảnh, nhấn giữ ảnh để lưu. <button className="text-button" onClick={() => setHelp(true)}>Xem cách lưu</button></p> : null}
+        {inZalo ? <p className="zalo-note">Nếu Zalo chặn tải, chọn “Cách lưu khác” sau khi bấm Download. <button className="text-button" onClick={() => setHelp(true)}>Xem cách lưu</button></p> : null}
       </section>
     </main>
 
     <footer className="site-footer"><span className="footer-brand">TDG PROPERTY</span><span><Icon name="lock" size={12}/>Ảnh chỉ xử lý trên thiết bị của bạn.</span></footer>
 
-    {result ? <SaveDialog result={result} onClose={() => setResult(null)}/> : null}
     {help ? <Modal title="Lưu ảnh thật đơn giản" onClose={() => setHelp(false)}>
       <ol className="help-list">
         <li><strong>Chọn ảnh & canh khung</strong><p>Kéo ảnh để đổi vị trí. Dùng thanh thu phóng hoặc chụm hai ngón để zoom tới 1000%.</p></li>
-        <li><strong>Nhấn “Download”</strong><p>Ảnh PNG sẽ hiện ra để bạn kiểm tra trước khi lưu.</p></li>
-        <li><strong>iPhone / iPad</strong><p>Chọn “Lưu vào Ảnh / Chia sẻ” → “Lưu hình ảnh”. Hoặc nhấn giữ ảnh để lưu. Nếu chọn tải PNG, ảnh có thể nằm trong ứng dụng Tệp → Tải về.</p></li>
-        <li><strong>Android</strong><p>Chọn “Tải ảnh PNG”. Kiểm tra thư mục Download / Tải xuống; hoặc dùng menu chia sẻ để lưu.</p></li>
-        <li><strong>Trình duyệt trong Zalo</strong><p>Nhấn giữ ảnh kết quả → lưu ảnh. Nếu Zalo không cho lưu, chọn ••• → mở bằng trình duyệt, rồi chọn ảnh lại tại Safari hoặc Chrome.</p></li>
+        <li><strong>Nhấn “Download”</strong><p>Ảnh PNG sẽ tải thẳng về thiết bị của bạn.</p></li>
+        <li><strong>iPhone / iPad</strong><p>Ảnh tải về có thể nằm trong Tệp → Tải về. Để lưu vào Ảnh, mở “Cách lưu khác” → “Lưu vào Ảnh / Chia sẻ” → “Lưu hình ảnh”.</p></li>
+        <li><strong>Android</strong><p>Kiểm tra thư mục Download / Tải xuống. Nếu chưa thấy ảnh, mở “Cách lưu khác” để nhấn giữ hoặc chia sẻ ảnh.</p></li>
+        <li><strong>Trình duyệt trong Zalo</strong><p>Mở “Cách lưu khác”, nhấn giữ ảnh kết quả để lưu. Nếu Zalo không cho lưu, chọn ••• → mở bằng trình duyệt, rồi chọn ảnh lại tại Safari hoặc Chrome.</p></li>
       </ol>
       <button className="button button-primary" onClick={() => setHelp(false)}>Đã hiểu<Icon name="check" size={18}/></button>
     </Modal> : null}
