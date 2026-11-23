@@ -4,7 +4,8 @@ import { Icon } from './Icon';
 import { Preview } from './Preview';
 import { Modal } from './Modal';
 import { SaveOptions } from './SaveOptions';
-import type { ExportedPhoto } from './SaveOptions';
+import { canSharePhoto, createExportedPhoto, isIOSDevice } from './saving';
+import type { ExportedPhoto } from './saving';
 import { clampTransform, exportPhoto, INITIAL, loadImage, readPhoto } from './image';
 import type { Photo, Transform } from './image';
 
@@ -16,14 +17,20 @@ export default function App() {
   const [error, setError] = useState('');
   const [frameError, setFrameError] = useState(false);
   const [result, setResult] = useState<ExportedPhoto | null>(null);
+  const [preparationError, setPreparationError] = useState('');
+  const [prepareVersion, setPrepareVersion] = useState(0);
+  const [saveAttempted, setSaveAttempted] = useState(false);
+  const [saveFallbackOpen, setSaveFallbackOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const request = useRef(0);
   const operation = useRef(false);
   const inZalo = /zalo/i.test(navigator.userAgent);
+  const ios = isIOSDevice();
   const mobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const preparing = ios && !!photo && !!frame && !result && !preparationError;
 
   useEffect(() => {
     let active = true;
@@ -34,9 +41,27 @@ export default function App() {
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.url); }, [photo]);
   useEffect(() => () => {
     // Give an in-progress browser download time to consume its blob after an edit.
-    if (result) window.setTimeout(() => URL.revokeObjectURL(result.url), 60_000);
-  }, [result]);
+    if (result) {
+      if (ios) URL.revokeObjectURL(result.url);
+      else window.setTimeout(() => URL.revokeObjectURL(result.url), 60_000);
+    }
+  }, [result, ios]);
   useEffect(() => () => { request.current++; }, []);
+
+  useEffect(() => {
+    if (!ios || !photo || !frame) return;
+    let active = true;
+    setPreparationError('');
+    // Encode after gestures settle, so the next tap can open iOS sharing synchronously.
+    const timer = window.setTimeout(() => {
+      exportPhoto(photo, frame, transform).then(blob => {
+        if (active) setResult(createExportedPhoto(blob));
+      }).catch(() => {
+        if (active) setPreparationError('Chưa chuẩn bị được ảnh. Bạn bấm thử lại nha.');
+      });
+    }, 180);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [ios, photo, frame, transform, prepareVersion]);
 
   function choose() { if (!operation.current) input.current?.click(); }
   async function upload(file: File | undefined) {
@@ -65,14 +90,35 @@ export default function App() {
   }
   async function save() {
     if (!photo || !frame || operation.current) return;
+    if (ios) {
+      if (!result) {
+        setPreparationError('');
+        setPrepareVersion(value => value + 1);
+        return;
+      }
+      setSaveAttempted(true);
+      setError('');
+      if (!canSharePhoto(result.file)) {
+        setSaveFallbackOpen(true);
+        return;
+      }
+      operation.current = true;
+      setBusy('export');
+      try {
+        // No encoding or await before this call: iOS requires an active user tap.
+        await navigator.share({ files: [result.file] });
+      } catch (cause) {
+        if (!(cause instanceof Error && cause.name === 'AbortError')) setSaveFallbackOpen(true);
+      } finally { operation.current = false; setBusy(null); }
+      return;
+    }
     operation.current = true;
     setBusy('export'); setError('');
     try {
       let exported = result;
       if (!exported) {
         const blob = await exportPhoto(photo, frame, transform);
-        const file = new File([blob], 'TDGFrame-50-ngay-than-toc.png', { type: 'image/png' });
-        exported = { file, url: URL.createObjectURL(blob) };
+        exported = createExportedPhoto(blob);
         setResult(exported);
       }
       const link = document.createElement('a');
@@ -88,6 +134,9 @@ export default function App() {
   function updateTransform(value: Transform) {
     setTransform(value);
     setResult(null);
+    setPreparationError('');
+    setSaveAttempted(false);
+    setSaveFallbackOpen(false);
   }
   function zoom(value: number) {
     if (photo) updateTransform(clampTransform({ ...transform, zoom: value }, photo.fit));
@@ -139,12 +188,16 @@ export default function App() {
           <button className="reset-button" disabled={!photo || !!busy} onClick={() => updateTransform(INITIAL)} aria-label="Đặt lại vị trí và zoom"><Icon name="reset" size={16}/></button>
         </div>
 
-        <button className="button button-primary export-button" disabled={!photo || !frame || !!busy} onClick={save}>
-          {busy === 'export' ? <span className="spinner"/> : <Icon name="download" size={21}/>}
-          {busy === 'export' ? 'Đang tạo ảnh…' : 'Download'}
+        <button className="button button-primary export-button" disabled={!photo || !frame || !!busy || preparing} onClick={save}>
+          {busy === 'export' || preparing ? <span className="spinner"/> : <Icon name="download" size={21}/>}
+          {preparing ? 'Đang tạo ảnh…' : busy === 'export' ? (ios ? 'Đang mở…' : 'Đang tạo ảnh…') : preparationError ? 'Thử lại' : 'Download'}
         </button>
-        <p className="error-message" role="alert">{error}</p>
-        {result && (mobile || inZalo) ? <SaveOptions result={result}/> : null}
+        {ios && result ? <p className="save-instruction">{saveFallbackOpen
+          ? 'Nhấn giữ ảnh bên dưới → Lưu hình ảnh.'
+          : 'Trong menu iOS, chọn “Lưu hình ảnh” để lưu vào Ảnh.'}</p> : null}
+        <p className="error-message" role="alert">{error || preparationError}</p>
+        {result && (mobile || inZalo) && (!ios || saveAttempted)
+          ? <SaveOptions result={result} expanded={saveFallbackOpen}/> : null}
         {frameError ? <div className="frame-error" role="alert">Chưa tải được khung. Kiểm tra kết nối rồi <button className="text-button" onClick={() => location.reload()}>thử lại</button>.</div> : null}
         {inZalo ? <p className="zalo-note">Nếu Zalo chặn tải, chọn “Cách lưu khác” sau khi bấm Download. <button className="text-button" onClick={() => setHelp(true)}>Xem cách lưu</button></p> : null}
       </section>
@@ -155,8 +208,8 @@ export default function App() {
     {help ? <Modal title="Lưu ảnh thật đơn giản" onClose={() => setHelp(false)}>
       <ol className="help-list">
         <li><strong>Chọn ảnh & canh khung</strong><p>Kéo ảnh để đổi vị trí. Dùng thanh thu phóng hoặc chụm hai ngón để zoom tới 1000%.</p></li>
-        <li><strong>Nhấn “Download”</strong><p>Ảnh PNG sẽ tải thẳng về thiết bị của bạn.</p></li>
-        <li><strong>iPhone / iPad</strong><p>Ảnh tải về có thể nằm trong Tệp → Tải về. Để lưu vào Ảnh, mở “Cách lưu khác” → “Lưu vào Ảnh / Chia sẻ” → “Lưu hình ảnh”.</p></li>
+        <li><strong>Nhấn “Download”</strong><p>Máy tính và Android tải PNG trực tiếp. iPhone / iPad mở menu lưu ảnh của iOS.</p></li>
+        <li><strong>iPhone / iPad</strong><p>Chọn “Lưu hình ảnh” trong menu iOS để lưu vào Ảnh. Nếu menu không mở, nhấn giữ ảnh kết quả → “Lưu hình ảnh”. Chọn tải file PNG riêng sẽ lưu vào Tệp.</p></li>
         <li><strong>Android</strong><p>Kiểm tra thư mục Download / Tải xuống. Nếu chưa thấy ảnh, mở “Cách lưu khác” để nhấn giữ hoặc chia sẻ ảnh.</p></li>
         <li><strong>Trình duyệt trong Zalo</strong><p>Mở “Cách lưu khác”, nhấn giữ ảnh kết quả để lưu. Nếu Zalo không cho lưu, chọn ••• → mở bằng trình duyệt, rồi chọn ảnh lại tại Safari hoặc Chrome.</p></li>
       </ol>

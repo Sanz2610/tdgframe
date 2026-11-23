@@ -23,7 +23,7 @@ npm run preview
 - Local JPG/PNG/WebP/AVIF decoding; lazy HEIC/HEIF conversion for browsers without native support.
 - Original campaign artwork optimized into a transparent 2048px WebP; export a **2048 × 2048 PNG**.
 - Photo fits a centered square measuring **78.5%** of the full frame, clipped to that area at every zoom level.
-- Download PNG immediately without a popup. Phones offer a collapsed **Cách lưu khác** section with sharing and a long-press image fallback.
+- Desktop/Android download PNG immediately without an app popup. iPhone/iPad open the native iOS share sheet so users can choose **Save Image** into Photos.
 - Zalo-specific saving guidance and external-browser fallback.
 - No backend, analytics, photo uploads, or persistent photo storage. Fonts are self-hosted.
 - Keyboard controls, native accessible dialogs, reduced motion, and safe area spacing.
@@ -36,9 +36,11 @@ Replace `public/frame.webp` to change the frame (square transparent image). The 
 
 ## Mobile saving
 
-Download generates the PNG and starts a browser download immediately, without an app popup. On phones, an inline **Cách lưu khác** section offers additional saving methods. The share button calls `navigator.share` directly from a new tap using the prepared file, preserving transient user activation. File sharing uses capability detection, with a normal image element as a long-press fallback. Editing or replacing a photo discards the previous export. A completed share call is not treated as proof that the user saved the file.
+On iPhone/iPad, PNG generation runs after photo adjustments settle. Download calls `navigator.share` directly from the user tap with the prepared PNG, preserving transient user activation even if encoding took several seconds. Choose **Save Image** in the native sheet to save into Photos. iPad desktop user agents are detected using MacIntel plus touch support.
 
-iOS may save a download to **Files → Downloads**. The share sheet can offer **Save Image**. Zalo varies by OS and app version; use long press or open in Safari/Chrome and select the photo again if its webview blocks saving.
+If sharing is unavailable or blocked, the inline result opens for long press → **Save Image**. Cancelling the share sheet does not trigger a file download. An explicitly labelled **Tải file PNG vào Tệp** link remains available for users who want a file. iOS cannot be instructed by a website to silently write into Photos; the user completes the native save action.
+
+Desktop/Android keep direct PNG downloads. On phones, an inline **Cách lưu khác** section offers additional saving methods. Editing or replacing a photo discards the previous export and cancels obsolete preparation. A completed share call is not treated as proof that the user saved the file. Zalo varies by OS and app version; use long press or open in Safari/Chrome and select the photo again if its webview blocks saving.
 
 ## Verification
 
