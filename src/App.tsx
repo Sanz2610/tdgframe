@@ -95,22 +95,17 @@ export default function App() {
         onChoose={choose} busy={!!busy}/>
 
       <section className="tools" aria-label="Tùy chỉnh ảnh">
-        <div className="section-label"><span className="step-number">01</span><h2>Chọn ảnh của bạn</h2></div>
         <input ref={input} id="photo-input" className="file-input" type="file"
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif" onChange={change} disabled={!!busy} aria-label="Chọn ảnh của bạn"/>
         <button className={`upload-button ${dragOver ? 'drag-over' : ''}`} onClick={choose} disabled={!!busy}
           onDragOver={event => { event.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)} onDrop={drop}>
           <span className="upload-icon">{busy === 'read' ? <span className="spinner"/> : <Icon name={photo ? 'image' : 'upload'} size={22}/>}</span>
-          <span><strong>{busy === 'read' ? 'Đang đọc ảnh…' : photo ? 'Đổi ảnh khác' : 'Chọn ảnh từ thiết bị'}</strong><small>JPG, PNG, WebP, HEIC · Tối đa 30 MB</small></span>
-          <Icon name="plus" size={20}/>
+          <span>{busy === 'read' ? 'Đang đọc ảnh…' : photo ? 'Đổi ảnh khác' : 'Upload ảnh'}</span>
         </button>
 
         <div className={`adjustment ${photo ? '' : 'inactive'}`}>
-          <div className="section-label adjust-title"><span className="step-number">02</span><h2>Canh cho thật nét</h2>
-            <button className="reset-button" disabled={!photo || !!busy} onClick={() => setTransform(INITIAL)} aria-label="Đặt lại vị trí và zoom"><Icon name="reset" size={15}/>Đặt lại</button>
-          </div>
-          <div className="zoom-label"><label htmlFor="zoom">Thu phóng</label><output htmlFor="zoom">{Math.round(transform.zoom * 100)}<span>%</span></output></div>
+          <label htmlFor="zoom" className="sr-only">Thu phóng</label>
           <div className="zoom-control">
             <button className="icon-button zoom-step" aria-label="Thu nhỏ ảnh" disabled={!photo || !!busy || transform.zoom <= 1}
               onClick={() => zoom(Math.max(1, transform.zoom - 0.1))}><Icon name="minus" size={17}/></button>
@@ -121,13 +116,14 @@ export default function App() {
             <button className="icon-button zoom-step" aria-label="Phóng to ảnh" disabled={!photo || !!busy || transform.zoom >= 10}
               onClick={() => zoom(Math.min(10, transform.zoom + 0.1))}><Icon name="plus" size={17}/></button>
           </div>
+          <output htmlFor="zoom">{Math.round(transform.zoom * 100)}<span>%</span></output>
+          <button className="reset-button" disabled={!photo || !!busy} onClick={() => setTransform(INITIAL)} aria-label="Đặt lại vị trí và zoom"><Icon name="reset" size={16}/></button>
         </div>
 
         <button className="button button-primary export-button" disabled={!photo || !frame || !!busy} onClick={save}>
           {busy === 'export' ? <span className="spinner"/> : <Icon name="download" size={21}/>}
-          {busy === 'export' ? 'Đang tạo ảnh…' : 'Tải ảnh của bạn'}<Icon name="arrow" size={19}/>
+          {busy === 'export' ? 'Đang tạo ảnh…' : 'Download'}
         </button>
-        <div className="output-note">PNG chất lượng cao<span>2048 × 2048 px</span></div>
         <p className="error-message" role="alert">{error}</p>
         {frameError ? <div className="frame-error" role="alert">Chưa tải được khung. Kiểm tra kết nối rồi <button className="text-button" onClick={() => location.reload()}>thử lại</button>.</div> : null}
         {inZalo ? <p className="zalo-note">Mở bằng Zalo: sau khi tạo ảnh, nhấn giữ ảnh để lưu. <button className="text-button" onClick={() => setHelp(true)}>Xem cách lưu</button></p> : null}
@@ -140,7 +136,7 @@ export default function App() {
     {help ? <Modal title="Lưu ảnh thật đơn giản" onClose={() => setHelp(false)}>
       <ol className="help-list">
         <li><strong>Chọn ảnh & canh khung</strong><p>Kéo ảnh để đổi vị trí. Dùng thanh thu phóng hoặc chụm hai ngón để zoom tới 1000%.</p></li>
-        <li><strong>Nhấn “Tải ảnh của bạn”</strong><p>Ảnh PNG sẽ hiện ra để bạn kiểm tra trước khi lưu.</p></li>
+        <li><strong>Nhấn “Download”</strong><p>Ảnh PNG sẽ hiện ra để bạn kiểm tra trước khi lưu.</p></li>
         <li><strong>iPhone / iPad</strong><p>Chọn “Lưu vào Ảnh / Chia sẻ” → “Lưu hình ảnh”. Hoặc nhấn giữ ảnh để lưu. Nếu chọn tải PNG, ảnh có thể nằm trong ứng dụng Tệp → Tải về.</p></li>
         <li><strong>Android</strong><p>Chọn “Tải ảnh PNG”. Kiểm tra thư mục Download / Tải xuống; hoặc dùng menu chia sẻ để lưu.</p></li>
         <li><strong>Trình duyệt trong Zalo</strong><p>Nhấn giữ ảnh kết quả → lưu ảnh. Nếu Zalo không cho lưu, chọn ••• → mở bằng trình duyệt, rồi chọn ảnh lại tại Safari hoặc Chrome.</p></li>

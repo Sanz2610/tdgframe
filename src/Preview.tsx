@@ -73,7 +73,6 @@ export function Preview({ photo, frame, transform, onTransform, onChoose, busy }
   }
 
   return <section className="preview-area" aria-label="Xem trước ảnh">
-    <div className="preview-meta"><span><span className="live-dot"/>XEM TRƯỚC</span><span>1:1</span></div>
     <div className={`preview-stage ${photo ? 'has-photo' : ''}`}>
       <div className="preview" role="group" tabIndex={photo ? 0 : -1}
         aria-label="Canh ảnh: kéo hoặc dùng phím mũi tên để di chuyển, chụm hai ngón để zoom"

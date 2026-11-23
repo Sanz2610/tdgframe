@@ -82,7 +82,7 @@ export function paint(canvas: HTMLCanvasElement, photo: Photo | null,
   if (!context) throw new Error('Thiết bị chưa hỗ trợ xử lý ảnh. Bạn thử Chrome hoặc Safari nha.');
   const size = canvas.width;
   context.clearRect(0, 0, size, size);
-  context.fillStyle = '#101d37';
+  context.fillStyle = '#f3f7ff';
   context.fillRect(0, 0, size, size);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
